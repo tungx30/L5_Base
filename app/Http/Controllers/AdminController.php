@@ -3,63 +3,56 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admin;
+use App\Repositories\Contracts\AdminRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected $repository;
+    public function __construct(AdminRepository $repository)
     {
-        //
+        $this->repository = $repository;
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Handle admin login.
      */
-    public function create()
+    public function login(Request $request)
     {
-        //
+        $check = Auth::guard('admin')->attempt([
+            'email'         => $request->email,
+            'password'      => $request->password
+        ]);
+        if ($check) {
+            $admin = Auth::guard('admin')->user();
+            return response()->json([
+                'status'    => true,
+                'message'   => 'Login success',
+                'token'     => $admin->createToken('token_admin')->plainTextToken,
+            ]);
+        } else {
+            return response()->json([
+                'status'    => false,
+                'message'   => 'Check your password or email again',
+            ]);
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Handle admin logout.
      */
-    public function store(Request $request)
+    public function logout()
     {
-        //
+        Auth::guard('sanctum')->user()->tokens()->delete();
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
     /**
-     * Display the specified resource.
+     * Get authenticated admin profile.
      */
-    public function show(Admin $admin)
+    public function profile()
     {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Admin $admin)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Admin $admin)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Admin $admin)
-    {
-        //
+        return response()->json(Auth::guard('sanctum')->user());
     }
 }
