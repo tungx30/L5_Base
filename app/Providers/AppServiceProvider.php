@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use App\Repositories\Contracts\AdminRepository;
+use App\Repositories\Contracts\AuthRepository;
 use App\Repositories\Contracts\UserRepository;
-use App\Repositories\Eloquent\AdminRepositoryEloquent;
+use App\Repositories\Eloquent\AuthRepositoryEloquent;
 use App\Repositories\Eloquent\UserRepositoryEloquent;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(UserRepository::class, UserRepositoryEloquent::class);
-        $this->app->bind(AdminRepository::class, AdminRepositoryEloquent::class);
+        $this->app->bind(AuthRepository::class, AuthRepositoryEloquent::class);
     }
 
     /**

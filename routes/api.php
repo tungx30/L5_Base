@@ -1,26 +1,18 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
-Route::post('/admin/login', [AdminController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::get('/profile', [AuthController::class, 'profile'])->middleware('auth:sanctum');
 
-Route::middleware('AdminMiddleware')->group(function () {
-    Route::post('/admin/logout', [AdminController::class, 'logout']);
-    Route::get('/admin/profile', [AdminController::class, 'profile']);
-});
-
-Route::middleware('AdminMiddleware')->group(function () {
+Route::middleware(['auth:sanctum', 'AdminMiddleware'])->group(function () {
     Route::apiResource('/admin/users', UserController::class);
 });
 
-Route::post('/user/register', [UserController::class, 'register']);
-Route::post('/user/login', [UserController::class, 'login']);
+Route::post('/register', [UserController::class, 'register']);
 
-Route::middleware('UserMiddleware')->group(function () {
-    Route::get('/user/profile', [UserController::class, 'profile']);
-    Route::post('/user/logout', [UserController::class, 'logout']);
-});

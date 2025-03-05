@@ -6,7 +6,7 @@ use App\Models\User;
 use App\Repositories\Contracts\UserRepository;
 use Prettus\Repository\Eloquent\BaseRepository;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class UserRepositoryEloquent extends BaseRepository implements UserRepository
@@ -19,17 +19,19 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
     /**
      * Get all users with optional filters.
      */
-    public function getAll( $filters = [])
+    public function getAll($filters = [])
     {
-        $query = User::query();
+        $query = $this->model->newQuery();
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
         if (!empty($filters['search'])) {
-            $query->where('name', 'like', '%' . $filters['search'] . '%')
+            $query->where(function ($q) use ($filters) {
+                $q->where('name', 'like', '%' . $filters['search'] . '%')
                   ->orWhere('email', 'like', '%' . $filters['search'] . '%')
                   ->orWhere('phone', 'like', '%' . $filters['search'] . '%');
+            });
         }
         if (!empty($filters['order_by'])) {
             $query->orderBy($filters['order_by'], $filters['sort'] ?? 'asc');
@@ -41,9 +43,9 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
     /**
      * Get user by ID with optional relationships.
      */
-    public function findById($id,  $relations = [])
+    public function findById($id, $relations = [])
     {
-        $query = User::query();
+        $query = $this->model->newQuery();
 
         if (!empty($relations)) {
             $query->with($relations);
@@ -61,27 +63,24 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
     /**
      * Create a new user.
      */
-    public function createUser( $request)
+    public function createUser(array $data)
     {
-        $request['password'] = Hash::make($request['password']);
-        return $this->create($request);
+        $data['password'] = Hash::make($data['password']);
+        return $this->create($data);
     }
 
     /**
      * Update user by ID.
      */
-    public function updateUser($id,  $request)
+    public function updateUser($id, array $data)
     {
-        $user = $this->find($id);
-        if (!$user) {
-            throw new ModelNotFoundException("User not found");
+        $user = $this->findById($id);
+
+        if (isset($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
         }
 
-        if (isset($request['password'])) {
-            $request['password'] = Hash::make($request['password']);
-        }
-
-        return $this->update($request, $id);
+        return $this->update($data, $id);
     }
 
     /**
@@ -89,6 +88,15 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
      */
     public function deleteUser($id)
     {
+        $user = $this->findById($id);
         return $this->delete($id);
+    }
+
+    /**
+     * Handle user registration.
+     */
+    public function register(array $data)
+    {
+        return $this->createUser($data);
     }
 }
