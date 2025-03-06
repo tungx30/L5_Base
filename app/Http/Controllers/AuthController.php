@@ -23,7 +23,7 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request)
     {
-        $result = $this->repository->login($request);
+        $result = $this->repository->login($request->all());
         return $this->successResponse($result, 'Login successful');
     }
 

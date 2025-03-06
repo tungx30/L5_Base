@@ -8,6 +8,9 @@ use Prettus\Repository\Eloquent\BaseRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Prettus\Repository\Criteria\RequestCriteria;
+use Spatie\Permission\Models\Role;
+use App\Enums\RoleEnum;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class UserRepositoryEloquent extends BaseRepository implements UserRepository
 {
@@ -15,11 +18,13 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
     {
         return User::class;
     }
+
     protected $fieldSearchable  = [
         'id' => 'id',
-        'name'=>'like',
-        'email'=>'like',
-        'phone'=>'like',
+        'name' => 'like',
+        'email' => 'like',
+        'phone' => 'like',
+        'order.id' => '='
     ];
 
     public function boot()
@@ -29,43 +34,38 @@ class UserRepositoryEloquent extends BaseRepository implements UserRepository
 
     public function getAll($filters = [])
     {
-        return $this->scopeQuery(function ($query) use ($filters) {
-            if (!empty($filters['search']) && !empty($filters['searchFields'])) {
-                $search = $filters['search'];
-                $searchFields = explode(',', $filters['searchFields']);
-
-                $query->where(function ($q) use ($search, $searchFields) {
-                    foreach ($searchFields as $field) {
-                        if (strpos($field, ':like') !== false) {
-                            $q->orWhere(str_replace(':like', '', $field), 'LIKE', '%' . $search . '%');
-                        } else {
-                            $q->orWhere($field, '=', $search);
-                        }
-                    }
-                });
-            }
-
-            return $query;
-        })->paginate();
+        return $this->paginate(10);
     }
 
-    public function findById($id, $relations = [])
+    public function findByIdUser($id)
     {
-        return $this->with($relations)->findOrFail($id);
+        return $this->findOrFail($id);
     }
 
     public function createUser(array $data)
     {
         $data['password'] = Hash::make($data['password']);
-        return $this->create($data);
+        $user = $this->create($data);
+        $roleName = RoleEnum::getText(RoleEnum::USER);
+        $user->syncRoles($roleName);
+        return $user;
     }
 
     public function updateUser($id, array $data)
     {
+        $user = $this->find($id);
         if (!empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         }
-        return $this->update($data, $id);
+        $user->update($data);
+        if (!empty($data['role'])) {
+            $role = RoleEnum::getText($data['role']);
+            if ($user->hasRole($role) === false) {
+                $user->syncRoles([$role]);
+            }
+        }
+
+        return $user;
     }
 
     public function deleteUser($id)
