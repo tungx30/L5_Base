@@ -49,7 +49,7 @@ class UserController extends Controller
     public function show($id)
     {
         return $this->successResponse(
-            $this->userRepository->findById($id),
+            $this->userRepository->findByIdUser($id),
             'User Information'
         );
     }

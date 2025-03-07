@@ -2,62 +2,76 @@
 
 namespace App\Repositories\Eloquent;
 
-use App\Models\Admin;
 use App\Models\User;
 use App\Repositories\Contracts\AuthRepository;
 use Prettus\Repository\Eloquent\BaseRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
+use Spatie\Permission\Models\Role;
+use App\Enums\RoleEnum;
 
 class AuthRepositoryEloquent extends BaseRepository implements AuthRepository
 {
     public function model()
     {
-        return Admin::class;
+        return User::class;
     }
 
     /**
-     * Handle login for both Admin and User.
+     * Handle login and return role & permissions.
      */
     public function login(array $credentials)
     {
-        $guards = ['admin', 'user'];
-        foreach ($guards as $guard) {
-            if (Auth::guard($guard)->attempt($credentials)) {
-                $user = Auth::guard($guard)->user();
-                $tokenName = ($guard === 'admin') ? 'token_admin' : 'token_user';
+        $user = User::where('email', $credentials['email'])->first();
 
-                return [
-                    'user' => $user,
-                    'role' => $guard,
-                    'token' => $user->createToken($tokenName)->plainTextToken,
-                ];
-            }
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['Email hoặc mật khẩu không đúng.'],
+            ]);
         }
 
-        throw ValidationException::withMessages([
-            'email' => ['Email or password is incorrect.'],
-        ]);
+        return response()->json([
+            'message' => 'Đăng nhập thành công',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'role' =>  $user->roles,
+                'token'     => $user->createToken('token_admin')->plainTextToken,
+            ]
+        ], 200);
     }
+
 
     /**
      * Handle logout.
      */
     public function logout()
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::user();
         if ($user) {
             $user->tokens()->delete();
         }
-        return true;
+        return response()->json(['message' => 'Đăng xuất thành công.'], 200);
     }
 
     /**
-     * Get authenticated user's profile.
+     * Get authenticated user's profile with role and permissions.
      */
     public function profile()
     {
-        return Auth::guard('sanctum')->user();
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
+        }
+        return response()->json([
+            'user' => $user,
+            'role' =>  $user->roles,
+        ]);
     }
 }
